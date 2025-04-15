@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -25,16 +24,18 @@ const VolunteerOpportunities = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return;
-      
+      setIsLoading(true);
       try {
-        const [opportunitiesData, registrationsData] = await Promise.all([
-          getVolunteerOpportunities(),
-          getVolunteerRegistrations(user.id)
-        ]);
+        console.log("Starting to fetch data...");
+        const opportunitiesData = await getVolunteerOpportunities();
+        console.log("Opportunities data received:", opportunitiesData);
         
         setOpportunities(opportunitiesData);
-        setRegistrations(registrationsData);
+        
+        if (user) {
+          const registrationsData = await getVolunteerRegistrations(user.id);
+          setRegistrations(registrationsData);
+        }
       } catch (error) {
         console.error("Error fetching volunteer opportunities:", error);
         toast({
@@ -130,19 +131,39 @@ const VolunteerOpportunities = () => {
   };
 
   // Filter opportunities for active ones that are in the future
+  console.log('Before filtering - opportunities:', opportunities);
+  console.log('Current filter values - searchTerm:', searchTerm, 'filterCategory:', filterCategory);
+  
   const filteredOpportunities = opportunities.filter(opportunity => {
+    console.log('Filtering opportunity:', opportunity.title);
+    
     // Only show active opportunities
-    if (opportunity.status !== 'active' && opportunity.status !== 'full') return false;
+    if (opportunity.status !== 'active' && opportunity.status !== 'full') {
+      console.log('Filtered out due to status:', opportunity.status);
+      return false;
+    }
     
     // Only show future opportunities
     const opportunityDate = new Date(opportunity.date);
-    if (opportunityDate < new Date()) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to midnight for date-only comparison
+    opportunityDate.setHours(0, 0, 0, 0); // Set to midnight for date-only comparison
+    
+    if (opportunityDate < today) {
+      console.log('Filtered out due to date:', opportunity.date);
+      return false;
+    }
     
     const matchesSearch = opportunity.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           opportunity.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === "all" || opportunity.category === filterCategory;
+    
+    console.log('Search match:', matchesSearch, 'Category match:', matchesCategory);
+    
     return matchesSearch && matchesCategory;
   });
+  
+  console.log('After filtering - filteredOpportunities:', filteredOpportunities);
 
   if (isLoading) {
     return (
